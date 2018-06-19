@@ -49,7 +49,7 @@ public class Locust {
   private List<Cron> prototypes;
   private List<Cron> crons = new ArrayList<>();
   /** Hatch rate required by the master. Hatch rate means clients/s. */
-  private int hatchRate = 0;
+  private double hatchRate = 0;
 
   private Locust(Builder builder) {
     this.builder = builder;
@@ -143,7 +143,7 @@ public class Locust {
       transport.send(new Message("hatching", null, nodeID));
       Float hatchRate = Float.valueOf(message.getData().get("hatch_rate").toString());
       int numClients = Integer.valueOf(message.getData().get("num_clients").toString());
-      startHatching(numClients, hatchRate.intValue());
+      startHatching(numClients, hatchRate.doubleValue());
       return;
     }
 
@@ -295,7 +295,7 @@ public class Locust {
     this.onHatchCompleted();
   }
 
-  protected void startHatching(int spawnCount, int hatchRate) {
+  protected void startHatching(int spawnCount, double hatchRate) {
     State currentState = this.state.get();
     if (currentState != State.Running && currentState != State.Hatching) {
       statsService.clearAll();
