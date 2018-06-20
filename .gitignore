@@ -3,3 +3,9 @@ target/
 *.class
 .idea/
 *.iml
+.settings/
+.classpath
+.project
+*.releaseBackup
+release.properties
+.vscode/

@@ -23,8 +23,6 @@ IMHO, [Locust4j](https://github.com/myzhan/locust4j) a basic implementation for 
 
 Based on implementation of `Locust4j`, `Swarm` is completely re-written to address all issues above, with some additional features:
 
-- A better properties
-
 - Auto detect connection status to Locust master hosts and reponse back.
 
 - A better model to stimulate concurrent users (with disruptors)
@@ -46,7 +44,7 @@ Before using `Swarm`, you must declare it as a dependency of your Maven project.
 <dependency>
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 </dependency>
 ```
 
@@ -322,6 +320,10 @@ To effectively benchmark with Locust, we may need to use `connection pooling`
 If you find anything wrong or would like to contribute in any way, feel free to create a pull request/open an issue/send me a message. Any comments are welcome!
 
 #### 7. History
+
+**v0.1.1**
+- Released in 20/06/2018
+- Fixed a bug in processing hatch rates (PR by @HughZurname)
 
 **v0.1.0**
 - Released in 26/05/2018
