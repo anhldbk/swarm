@@ -480,6 +480,10 @@ public class Locust {
     }
 
     private void initialize(int parallelism, int capacity, int maxRps) {
+      if (maxRps > 0) {
+        logger.info("Setting max RPS to {}", maxRps);
+        rateLimiter = RateLimiter.create(maxRps);
+      }
       MessageHandler<Runnable> handler =
           (s, task) -> {
             try {
@@ -502,10 +506,6 @@ public class Locust {
         e.printStackTrace();
         logger.error("Can NOT initialize. Terminating now...");
         System.exit(-1);
-      }
-      if (maxRps > 0) {
-        logger.info("Setting max RPS to {}", maxRps);
-        rateLimiter = RateLimiter.create(maxRps);
       }
     }
 
