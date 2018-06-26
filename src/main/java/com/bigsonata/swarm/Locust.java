@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -79,7 +80,7 @@ public class Locust {
   }
 
   private void initializeCronProcessor() {
-    cronProcessor = new Processor(builder.disruptorParallelism, builder.disruptorCapacity);
+    cronProcessor = new Processor(builder.disruptorParallelism, builder.disruptorCapacity, builder.maxRps);
   }
 
   private void initializeLocustClient() {
@@ -397,6 +398,7 @@ public class Locust {
     private int disruptorParallelism = 8;
     private int statInterval = 2000;
     private int randomSeed = 0;
+    private int maxRps = 0;
 
     public static Builder newInstance() {
       return new Builder();
@@ -448,11 +450,16 @@ public class Locust {
       this.randomSeed = randomSeed;
       return this;
     }
+
+    public Builder setMaxRps(int maxRps) {
+      this.maxRps = maxRps;
+      return this;
+    }
   }
 
   public static class Processor {
     private static final Logger logger = LoggerFactory.getLogger(Processor.class);
-    private RateLimiter rateLimiter = null;
+    @Nullable private RateLimiter rateLimiter;
     private ExecutorService executor = null;
     private DisruptorBroker<Runnable> disruptor = null;
 
@@ -460,8 +467,8 @@ public class Locust {
       this(parallelism, capacity, -1);
     }
 
-    public Processor(int parallelism, int capacity, int requestRate) {
-      initialize(parallelism, capacity, requestRate);
+    public Processor(int parallelism, int capacity, int maxRps) {
+      initialize(parallelism, capacity, maxRps);
     }
 
     public Processor() {
@@ -472,7 +479,11 @@ public class Locust {
       this(parallelism, 1024);
     }
 
-    private void initialize(int parallelism, int capacity, int requestRate) {
+    private void initialize(int parallelism, int capacity, int maxRps) {
+      if (maxRps > 0) {
+        logger.info("Setting max RPS to {}", maxRps);
+        rateLimiter = RateLimiter.create(maxRps);
+      }
       MessageHandler<Runnable> handler =
           (s, task) -> {
             try {
@@ -495,10 +506,6 @@ public class Locust {
         e.printStackTrace();
         logger.error("Can NOT initialize. Terminating now...");
         System.exit(-1);
-      }
-
-      if (requestRate > 0) {
-        rateLimiter = RateLimiter.create(requestRate);
       }
     }
 
