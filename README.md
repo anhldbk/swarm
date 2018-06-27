@@ -299,6 +299,9 @@ Locust locust = Locust.Builder.newInstance()
         // Optionally set the number of threads used by Disruptor
         // Default: 4
         .setDisruptorParallelism(8)
+        
+        // Optionally set the number of maximum requests per second
+        .setMaxRps(1000)
 
         .build();
 
@@ -321,9 +324,10 @@ If you find anything wrong or would like to contribute in any way, feel free to 
 
 #### 7. History
 
-**v0.1.1**
-- Released in 20/06/2018
-- Fixed a bug in processing hatch rates (PR by @HughZurname)
+**v0.1.2**
+- Released in 27/06/2018
+- Fixed a bug in processing hatch rates (PR by [@HughZurname](https://github.com/HughZurname))
+- Allowed  Locust crons to specify the maximum requests per second (PR by [@jaymoid](https://github.com/jaymoid))
 
 **v0.1.0**
 - Released in 26/05/2018

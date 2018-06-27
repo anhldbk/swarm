@@ -6,7 +6,7 @@
 
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>swarm-http-benchmark</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.2</version>
 
     <properties>
         <jdk.version>1.8</jdk.version>
