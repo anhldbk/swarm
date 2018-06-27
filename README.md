@@ -44,7 +44,7 @@ Before using `Swarm`, you must declare it as a dependency of your Maven project.
 <dependency>
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
 </dependency>
 ```
 
@@ -327,7 +327,7 @@ If you find anything wrong or would like to contribute in any way, feel free to 
 **v0.1.2**
 - Released in 27/06/2018
 - Fixed a bug in processing hatch rates (PR by [@HughZurname](https://github.com/HughZurname))
-- Allowed  Locust crons to specify the maximum requests per second (PR by [@jaymoid](https://github.com/jaymoid))
+- Allowed  Locust to specify the maximum requests per second (PR by [@jaymoid](https://github.com/jaymoid))
 
 **v0.1.0**
 - Released in 26/05/2018
