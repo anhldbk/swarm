@@ -1,5 +1,6 @@
 target/
 *.log
+*.out
 *.class
 .idea/
 *.iml
@@ -9,3 +10,5 @@ target/
 *.releaseBackup
 release.properties
 .vscode/
+examples/http-benchmark/src/main/resources/
+examples/http-benchmark/src/test/

@@ -50,7 +50,7 @@ public class Utils {
   /**
    * Get the current timestamp in millis.
    *
-   * @return
+   * @return  The current timestamp
    */
   public static long now() {
     return System.currentTimeMillis();
@@ -59,7 +59,7 @@ public class Utils {
   /**
    * Get the current timestamp in seconds.
    *
-   * @return
+   * @return  The current timestamp
    */
   public static long currentTimeInSeconds() {
     return now() / 1000;

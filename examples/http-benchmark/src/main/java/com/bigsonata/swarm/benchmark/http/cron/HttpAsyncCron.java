@@ -18,6 +18,7 @@ public class HttpAsyncCron extends HttpCron {
     @Override
     public void process() {
         long start = System.currentTimeMillis();
+        pending.incrementAndGet();
         try {
             ListenableFuture<Response> request = asyncHttpClient.prepareGet(URL).execute();
 
@@ -25,6 +26,7 @@ public class HttpAsyncCron extends HttpCron {
                     () -> {
                         long latency = System.currentTimeMillis() - start;
                         LOGGER.info("Processed in {}ms", latency);
+                        pending.decrementAndGet();
                         recordSuccess(latency);
                     },
                     executor);
@@ -34,6 +36,7 @@ public class HttpAsyncCron extends HttpCron {
             LOGGER.error("Stack: {}", ExceptionUtils.getStackTrace(e));
             long latency = System.currentTimeMillis() - start;
             recordFailure(latency, e.getMessage());
+            pending.decrementAndGet();
         }
     }
 

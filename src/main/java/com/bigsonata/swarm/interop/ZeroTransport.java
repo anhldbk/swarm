@@ -1,8 +1,8 @@
 package com.bigsonata.swarm.interop;
 
-import com.bigsonata.swarm.Locust;
+import com.bigsonata.swarm.Context;
 import com.bigsonata.swarm.common.whisper.MessageHandler;
-import com.bigsonata.swarm.common.whisper.disruptor.DisruptorBroker;
+import com.bigsonata.swarm.common.whisper.DisruptorBroker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZContext;
@@ -28,7 +28,7 @@ public abstract class ZeroTransport extends Transport {
   private DisruptorBroker sender;
   private TransportMonitor monitor;
 
-  protected ZeroTransport(Locust.Context ctx) {
+  protected ZeroTransport(Context ctx) {
     this.host = ctx.getMasterHost();
     this.port = ctx.getMasterPort();
     if (checkInterval > 0) {
@@ -86,7 +86,7 @@ public abstract class ZeroTransport extends Transport {
     this.receiver =
         new LoopingThread("locust-receiver") {
           @Override
-          public Action process() throws Exception, java.nio.channels.ClosedByInterruptException {
+          public Action process() throws Exception {
             try {
               byte[] bytes = ZeroTransport.this.pullSocket.recv();
               if (bytes != null) {

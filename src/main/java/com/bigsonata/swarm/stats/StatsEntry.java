@@ -18,7 +18,7 @@ public class StatsEntry {
   public AtomicLong maxResponseTime;
   public Histogram numReqsPerSec;
   public Histogram responseTimes;
-  public AtomicLong totalContentLength;
+  public AtomicLong totalResponseLength;
   public AtomicLong startTime;
   public AtomicLong lastRequestTimestamp;
 
@@ -41,14 +41,14 @@ public class StatsEntry {
     this.maxResponseTime = new AtomicLong(0);
     this.lastRequestTimestamp = new AtomicLong(Utils.currentTimeInSeconds());
     this.numReqsPerSec = new Histogram();
-    this.totalContentLength = new AtomicLong(0);
+    this.totalResponseLength = new AtomicLong(0);
   }
 
-  public void log(long responseTime, long contentLength) {
+  public void log(long responseTime, long responseLength) {
     this.numRequests.incrementAndGet();
     this.logTimeOfRequest();
     this.logResponseTime(responseTime);
-    this.totalContentLength.addAndGet(contentLength);
+    this.totalResponseLength.addAndGet(responseLength);
   }
 
   public void logTimeOfRequest() {
@@ -102,7 +102,7 @@ public class StatsEntry {
     result.put("total_response_time", this.totalResponseTime.get());
     result.put("max_response_time", this.maxResponseTime.get());
     result.put("min_response_time", this.minResponseTime.get());
-    result.put("total_content_length", this.totalContentLength.get());
+    result.put("total_content_length", this.totalResponseLength.get());
     result.put("response_times", this.responseTimes);
     result.put("num_reqs_per_sec", this.numReqsPerSec);
     return result;

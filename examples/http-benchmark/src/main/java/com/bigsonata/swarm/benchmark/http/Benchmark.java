@@ -28,7 +28,7 @@ public class Benchmark {
 
     public void start() {
         List<Cron> crons = getCrons();
-        locust.run(crons);
+        locust.register(crons);
     }
 
     public void initialize() throws Exception {
@@ -47,14 +47,9 @@ public class Benchmark {
                         // Optionally signal a seed number to generate nodeId
                         .setRandomSeed(0)
 
-                        // Optionally signal the capacity for our Disruptor's ring
-                        // Note: Must be a power-of-2 number
-                        // Default: 1024
-                        .setDisruptorCapacity(DISRUPTOR_CAPACITY)
-
                         // Optionally signal the number of threads used by Disruptor
                         // Default: 4
-                        .setDisruptorParallelism(LOCUST_PARALLELISM)
+                        .setThreads(LOCUST_PARALLELISM)
                         .build();
     }
 

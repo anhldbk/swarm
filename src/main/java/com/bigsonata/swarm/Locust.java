@@ -1,56 +1,56 @@
 package com.bigsonata.swarm;
 
-import com.bigsonata.swarm.common.AtomicCounter;
+import com.bigsonata.swarm.common.Disposable;
+import com.bigsonata.swarm.common.Initializable;
 import com.bigsonata.swarm.common.Utils;
-import com.bigsonata.swarm.common.whisper.MessageHandler;
-import com.bigsonata.swarm.common.whisper.disruptor.DisruptorBroker;
 import com.bigsonata.swarm.interop.Message;
 import com.bigsonata.swarm.interop.Transport;
 import com.bigsonata.swarm.interop.ZeroTransport;
 import com.bigsonata.swarm.stats.RequestFailure;
 import com.bigsonata.swarm.stats.RequestSuccess;
 import com.bigsonata.swarm.stats.StatsService;
-import com.google.common.base.Joiner;
 import com.google.common.util.concurrent.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Locust class exposes all the APIs of locust4j. Use Locust.getInstance() to get a Locust
  * singleton.
  */
-public class Locust {
+public class Locust implements Disposable, Initializable {
     private static final Logger logger = LoggerFactory.getLogger(Locust.class.getCanonicalName());
     private static Locust instance = null;
+
     /**
      * Every locust4j instance registers a unique nodeID to the master when it makes a connection.
      * NodeID is kept by Runner.
      */
     protected String nodeID = null;
+
     /** Number of clients required by the master, locust4j use threads to simulate clients. */
-    protected int numClients = 0;
+    protected int numCrons = 0;
+
+    /** Actual number of clients spawned */
+    protected AtomicInteger actualNumClients = new AtomicInteger(0);
 
     Context context = null;
     private Builder builder;
     private Transport transport = null;
     private boolean started = false;
-    private Processor cronProcessor;
+    private Scheduler scheduler;
     private StatsService statsService = null;
     /** Current state of runner. */
     private AtomicReference<State> state = new AtomicReference<>(State.IDLE);
     /** Task instances submitted by user. */
     private List<Cron> prototypes;
 
-    private List<Cron> crons = new ArrayList<>();
     /** Hatch rate required by the master. Hatch rate means clients/s. */
     private double hatchRate = 0;
 
@@ -62,11 +62,11 @@ public class Locust {
         Locust.instance = this;
     }
 
-    private void initialize() {
-        initializeCronProcessor();
+    public void initialize() {
+        initializeScheduler();
         initializeShutdownHook();
         initializeContext();
-        initializeLocustClient();
+        initializeTransport();
         initializeStatsService();
     }
 
@@ -77,17 +77,20 @@ public class Locust {
                         .setMasterHost(builder.masterHost)
                         .setMasterPort(builder.masterPort)
                         .setStatInterval(builder.statInterval)
-                        .setMaxPending(builder.disruptorCapacity)
-                        .setProcessor(cronProcessor);
+                        .setScheduler(scheduler);
     }
 
-    private void initializeCronProcessor() {
-        cronProcessor =
-                new Processor(
-                        builder.disruptorParallelism, builder.disruptorCapacity, builder.maxRps);
+    private void initializeScheduler() {
+        scheduler =
+                Scheduler.newBuilder()
+                        .setBufferSize(builder.bufferSize)
+                        .setMaxRps(builder.maxRps)
+                        .setParallelism(builder.threads)
+                        .setLocust(this)
+                        .build();
     }
 
-    private void initializeLocustClient() {
+    private void initializeTransport() {
         transport =
                 new ZeroTransport(context) {
                     @Override
@@ -131,8 +134,7 @@ public class Locust {
             return;
         }
 
-        data.put("user_count", numClients);
-        String report = Joiner.on(", ").withKeyValueSeparator(" -> ").join(data);
+        data.put("user_count", actualNumClients.get());
 
         try {
             transport.send(new Message("stats", data, nodeID));
@@ -143,49 +145,67 @@ public class Locust {
     }
 
     private void onMessage(Message message) throws Exception {
-        String type = message.getType();
         if (message.isHatch()) {
-            transport.send(new Message("hatching", null, nodeID));
-            Float hatchRate = Float.valueOf(message.getData().get("hatch_rate").toString());
-            int numClients = Integer.valueOf(message.getData().get("num_clients").toString());
-            startHatching(numClients, hatchRate.doubleValue());
+            onHatch(message);
             return;
         }
 
         if (message.isStop()) {
-            stop();
-            transport.send(new Message("client_stopped", null, nodeID));
-            transport.send(new Message("client_ready", null, nodeID));
+            onStop();
             return;
         }
 
         if (message.isQuit()) {
-            logger.info("Got `quit` message from master, shutting down...");
-            System.exit(0);
+            onQuit();
         }
+    }
+
+    private void onQuit() {
+        logger.info("Got `quit` message from master, shutting down...");
+        System.exit(0);
+    }
+
+    private void onStop() throws Exception {
+        if (!isStoppable()) {
+            return;
+        }
+        logger.info("Received message STOP from master, all the workers are stopped");
+        this.state.set(State.Stopped);
+        this.scheduler.stop();
+
+        transport.send(new Message("client_stopped", null, nodeID));
+        transport.send(new Message("client_ready", null, nodeID));
+    }
+
+    private void onHatch(Message message) throws Exception {
+        sendHatching();
+        Map data = message.getData();
+        Float hatchRate = Float.valueOf(data.get("hatch_rate").toString());
+        int numClients = Integer.valueOf(data.get("num_clients").toString());
+        startHatching(numClients, hatchRate.doubleValue());
     }
 
     /**
      * Add prototypes to Runner, connect to master and wait for messages of master.
      *
-     * @param crons
+     * @param crons List of crons to register
      */
-    public void run(Cron... crons) {
+    public void register(Cron... crons) {
         List<Cron> crs = new ArrayList<>();
         for (Cron task : crons) {
             crs.add(task);
         }
-        run(crs);
+        register(crs);
     }
 
     /**
      * Add prototypes to Runner, connect to master and wait for messages of master.
      *
-     * @param crons
+     * @param crons List of crons to register
      */
-    public synchronized void run(List<Cron> crons) {
+    public synchronized void register(List<Cron> crons) {
         if (this.started) {
-            // Don't call Locust.run() multiply times.
+            // Don't call Locust.register() multiply times.
             return;
         }
 
@@ -206,24 +226,25 @@ public class Locust {
                                     logger.warn("JVM is shutting down...");
                                     // tell master that I'm quitting
                                     dispose();
-                                }));
+                                },
+                                "swarm-shutdown-hook"));
     }
 
     /**
      * Add a successful record, locust4j will collect it, calculate things like RPS, and sendReport
      * to master.
      *
-     * @param type
-     * @param name
-     * @param responseTime
-     * @param contentLength
+     * @param type Type (GET, POST or whatever)
+     * @param name Name (API name)
+     * @param responseTime Response time
+     * @param responseLength Content size
      */
-    public void recordSuccess(String type, String name, long responseTime, long contentLength) {
+    public void recordSuccess(String type, String name, long responseTime, long responseLength) {
         RequestSuccess success = new RequestSuccess();
         success.type = type;
         success.name = name;
         success.responseTime = responseTime;
-        success.contentLength = contentLength;
+        success.responseLength = responseLength;
         statsService.report(success);
     }
 
@@ -234,10 +255,10 @@ public class Locust {
     /**
      * Add a failed record, locust4j will collect it, and sendReport to master.
      *
-     * @param type
-     * @param name
-     * @param responseTime
-     * @param error
+     * @param type Type (GET, POST or whatever)
+     * @param name Name (API name)
+     * @param responseTime Response time
+     * @param error Error
      */
     public void recordFailure(String type, String name, long responseTime, String error) {
         RequestFailure failure = new RequestFailure();
@@ -256,10 +277,10 @@ public class Locust {
         return getState().equals(Locust.State.Stopped);
     }
 
-    private void spawnWorkers(int spawnCount) {
+    private void spawn(int cronCount) {
         logger.info(
                 "Hatching and swarming {} clients at the rate of {} clients/s...",
-                spawnCount,
+                cronCount,
                 this.hatchRate);
         final RateLimiter rateLimiter = RateLimiter.create(this.hatchRate);
 
@@ -278,23 +299,24 @@ public class Locust {
                 percent = prototype.getWeight() / weightSum;
             }
 
-            int amount = Math.round(spawnCount * percent);
+            int amount = Math.round(cronCount * percent);
             if (weightSum == 0) {
-                amount = spawnCount / this.prototypes.size();
+                amount = cronCount / this.prototypes.size();
             }
 
             logger.info("> {}={}", prototype.getName(), amount);
 
             for (int i = 1; i <= amount; i++) {
                 rateLimiter.acquire();
+                if (isStopped()) {
+                    return;
+                }
+
                 Cron clone = prototype.clone();
                 clone.initialize(); // initialize them first
-                this.crons.add(clone);
+                this.scheduler.submit(clone);
+                actualNumClients.incrementAndGet();
             }
-        }
-
-        for (Cron cron : this.crons) {
-            this.context.schedule(cron);
         }
 
         this.onHatchCompleted();
@@ -302,81 +324,91 @@ public class Locust {
 
     protected void startHatching(int spawnCount, double hatchRate) {
         State currentState = this.state.get();
-        if (currentState != State.Running && currentState != State.Hatching) {
-            statsService.clearAll();
-            this.numClients = spawnCount;
-        }
-        if (currentState == State.Running) {
+        if (currentState != State.Ready && currentState != State.Stopped) {
+            logger.error("Invalid state. Terminating now...");
             this.dispose();
+            System.exit(-1);
         }
+        statsService.clearAll();
+        this.numCrons = spawnCount;
+
         logger.info("Start hatching...");
         logger.info("> spawnCount={}", spawnCount);
         logger.info("> hatchRate={}", hatchRate);
 
         this.state.set(State.Hatching);
+
+        this.actualNumClients.set(0);
         this.hatchRate = hatchRate;
-        this.numClients = spawnCount;
-        this.spawnWorkers(numClients);
+        this.numCrons = spawnCount;
+        this.spawn(numCrons);
     }
 
     protected void onHatchCompleted() {
-        Map data = new HashMap(1);
-        data.put("count", this.numClients);
+        sendHatchCompleted();
+        this.state.set(State.Running);
+    }
+
+    /**
+     * Send data to Locust Master
+     *
+     * @param type Type of message
+     * @param data Accompanied data
+     */
+    private void send(String type, Map data) {
+        logger.info("Sending {} message...", type);
         try {
-            transport.send(new Message("hatch_complete", data, this.nodeID));
+            transport.send(new Message(type, data, this.nodeID));
         } catch (Exception e) {
             e.printStackTrace();
-            logger.error("Can NOT send `hatch_complete` message");
+            logger.error("Can NOT send `{}` message", type);
         }
-        this.state.set(State.Running);
+    }
+
+    private void send(String type) {
+        send(type, null);
+    }
+
+    private void sendHatchCompleted() {
+        logger.info("Hatch completed!");
+        Map data = new HashMap(1);
+        data.put("count", this.numCrons);
+        send("hatch_complete", data);
+    }
+
+    private void sendHatching() {
+        send("hatching");
     }
 
     protected void sendQuit() {
         logger.info("Quitting...");
-        try {
-            transport.send(new Message("quit", null, this.nodeID));
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("Can NOT send `quit` message");
-        }
+        send("quit");
     }
 
     protected void sendReady() {
         logger.info("Ready!");
-        try {
-            transport.send(new Message("client_ready", null, this.nodeID));
-        } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("Can NOT send `client_ready` message");
-        }
+        send("client_ready");
     }
 
-    private void dispose() {
+    public void dispose() {
         logger.warn("Disposing...");
         sendQuit();
 
         this.state.set(State.Stopped);
-        transport.dispose();
 
         for (Cron cron : prototypes) {
             cron.dispose();
         }
-        cronProcessor.dispose();
+
+        scheduler.dispose();
+        transport.dispose();
 
         logger.info("Bye bye!");
     }
 
-    protected void stop() {
-        if (this.state.get() != State.Running) {
-            return;
-        }
-        logger.info("Received message STOP from master, all the workers are stopped");
-        this.state.set(State.Stopped);
-
-        for (Cron cron : this.crons) {
-            cron.dispose();
-        }
-        this.crons.clear();
+    private boolean isStoppable() {
+        State currentState = this.state.get();
+        return currentState == State.Running || currentState == State.Hatching;
     }
 
     /** State of runner */
@@ -398,8 +430,8 @@ public class Locust {
     public static class Builder {
         private String masterHost = "127.0.0.1";
         private int masterPort = 5557;
-        private int disruptorCapacity = 1024;
-        private int disruptorParallelism = 8;
+        private int bufferSize = 1024;
+        private int threads = 8;
         private int statInterval = 2000;
         private int randomSeed = 0;
         private int maxRps = 0;
@@ -409,7 +441,7 @@ public class Locust {
         }
 
         public Locust build() throws Exception {
-            if ((disruptorCapacity & (disruptorCapacity - 1)) != 0) {
+            if ((bufferSize & (bufferSize - 1)) != 0) {
                 throw new Exception("Disruptor capacity must be a power of 2");
             }
             return new Locust(this);
@@ -418,7 +450,8 @@ public class Locust {
         /**
          * Set master host.
          *
-         * @param masterHost
+         * @param masterHost Locust host
+         * @return The current Builder instance
          */
         public Builder setMasterHost(String masterHost) {
             this.masterHost = masterHost;
@@ -428,23 +461,31 @@ public class Locust {
         /**
          * Set master port.
          *
-         * @param masterPort
+         * @param masterPort Locust port
+         * @return The current Builder instance
          */
         public Builder setMasterPort(int masterPort) {
             this.masterPort = masterPort;
             return this;
         }
 
-        public Builder setDisruptorCapacity(int disruptorCapacity) {
-            this.disruptorCapacity = disruptorCapacity;
+        /**
+         * Number of threads to stimulate crons
+         *
+         * @param threads Number of threads
+         * @return The current Builder instance
+         */
+        public Builder setThreads(int threads) {
+            this.threads = threads;
             return this;
         }
 
-        public Builder setDisruptorParallelism(int disruptorParallelism) {
-            this.disruptorParallelism = disruptorParallelism;
-            return this;
-        }
-
+        /**
+         * Set the interval to send statistics data to Locust Master
+         *
+         * @param statInterval Interval (in ms)
+         * @return The current Builder instance
+         */
         public Builder setStatInterval(int statInterval) {
             this.statInterval = statInterval;
             return this;
@@ -455,187 +496,14 @@ public class Locust {
             return this;
         }
 
+        /**
+         * Set the maximum requests per second restricted on this Swarm application
+         *
+         * @param maxRps A positive number
+         * @return The current Builder instance
+         */
         public Builder setMaxRps(int maxRps) {
             this.maxRps = maxRps;
-            return this;
-        }
-    }
-
-    public static class Processor {
-        private static final Logger logger = LoggerFactory.getLogger(Processor.class);
-        @Nullable private RateLimiter rateLimiter;
-        private ExecutorService executor = null;
-        private DisruptorBroker<Runnable> disruptor = null;
-
-        public Processor(int parallelism, int capacity) {
-            this(parallelism, capacity, -1);
-        }
-
-        public Processor(int parallelism, int capacity, int maxRps) {
-            initialize(parallelism, capacity, maxRps);
-        }
-
-        public Processor() {
-            this(1, 1024);
-        }
-
-        public Processor(int parallelism) {
-            this(parallelism, 1024);
-        }
-
-        private void initialize(int parallelism, int capacity, int maxRps) {
-            if (maxRps > 0) {
-                logger.info("Setting max RPS to {}", maxRps);
-                rateLimiter = RateLimiter.create(maxRps);
-            }
-            MessageHandler<Runnable> handler =
-                    (s, task) -> {
-                        try {
-                            task.run();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            logger.error(
-                                    "Error when processing events. Detail: {}", e.getMessage());
-                        }
-                    };
-            try {
-                executor = Executors.newFixedThreadPool(1);
-                disruptor =
-                        DisruptorBroker.<Runnable>newBuilder()
-                                .setBufferSize(capacity)
-                                .setMessageHandler(handler)
-                                .setParallelism(parallelism)
-                                .build();
-                disruptor.initialize();
-            } catch (Exception e) {
-                e.printStackTrace();
-                logger.error("Can NOT initialize. Terminating now...");
-                System.exit(-1);
-            }
-        }
-
-        public void dispose() {
-            if (disruptor == null) {
-                return;
-            }
-            logger.warn("Disposing ...");
-            executor.shutdownNow();
-            try {
-                disruptor.dispose();
-            } catch (Exception e) {
-                // don't care
-            }
-        }
-
-        public void submit(Runnable task) {
-            if (rateLimiter != null) {
-                rateLimiter.acquire();
-            }
-            try {
-                disruptor.produce(null, task);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        public void submitAsync(Runnable task) {
-            executor.submit(() -> submit(task));
-        }
-    }
-
-    public static class Context {
-        private static Context instance = new Context();
-        protected Locust locust = null;
-        protected Processor processor = null;
-        protected int maxPending = 0;
-        protected AtomicCounter pending = new AtomicCounter(0);
-        private int statInterval = 3000; // 3s
-        private String masterHost = "127.0.0.1";
-        private int masterPort = 7778;
-
-        public static Context getInstance() {
-            return instance;
-        }
-
-        public Context setLocust(Locust locust) {
-            this.locust = locust;
-            return this;
-        }
-
-        public Context setProcessor(Processor processor) {
-            this.processor = processor;
-            return this;
-        }
-
-        public Context setMaxPending(int maxPending) {
-            if (maxPending > 0) this.maxPending = maxPending;
-            return this;
-        }
-
-        private void await(Cron cron) {
-            if (cron.props.async) this.pending.incIfLessThan(maxPending);
-        }
-
-        /**
-         * Invoke this method in async mode to notify a processing task is handled If you don't call
-         * this method, no more task will be performed
-         */
-        private void done(Cron cron) {
-            // Notify a processing task is handled
-            // We must do this to not over-schedule crons
-            if (cron.props.async) {
-                this.pending.decIfPositive();
-            }
-        }
-
-        public void recordFailure(Cron cron, long responseTime, String error) {
-            this.locust.recordFailure(cron.props.type, cron.props.name, responseTime, error);
-            done(cron);
-        }
-
-        public void recordSuccess(Cron cron, long responseTime, long contentLength) {
-            this.locust.recordSuccess(
-                    cron.props.type, cron.props.name, responseTime, contentLength);
-            done(cron);
-        }
-
-        /**
-         * Invoke this method to schedule a cron to run in the future
-         *
-         * @param cron A cron
-         */
-        public void schedule(Cron cron) {
-            if (this.locust.isStopped()) {
-                return;
-            }
-            this.await(cron);
-            this.processor.submitAsync(cron);
-        }
-
-        public int getStatInterval() {
-            return statInterval;
-        }
-
-        public Context setStatInterval(int statInterval) {
-            this.statInterval = statInterval;
-            return this;
-        }
-
-        public int getMasterPort() {
-            return masterPort;
-        }
-
-        public Context setMasterPort(int masterPort) {
-            this.masterPort = masterPort;
-            return this;
-        }
-
-        public String getMasterHost() {
-            return masterHost;
-        }
-
-        public Context setMasterHost(String masterHost) {
-            this.masterHost = masterHost;
             return this;
         }
     }

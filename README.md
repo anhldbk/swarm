@@ -44,7 +44,7 @@ Before using `Swarm`, you must declare it as a dependency of your Maven project.
 <dependency>
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>0.1.2</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -131,7 +131,6 @@ public abstract class Cron implements Cloneable, Runnable {
     public void run() {
         // ...
         process();
-        schedule();
     }
 
     public abstract void dispose();
@@ -260,11 +259,7 @@ public class AsyncCron extends Cron {
         boolean usePlainText = true;
         message = MessageSendUser.newBuilder()
                 .setData(ByteString.copyFromUtf8("Data sample"))
-                .setUsrid(Long.valueOf("170829000000003"))
                 .setPushtitle("Apns push test")
-                .setMsgid(System.currentTimeMillis())
-                .setMsgtype(4)
-                .setPushembeddata("f")
                 .build();
         channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext(usePlainText)
@@ -291,24 +286,19 @@ Locust locust = Locust.Builder.newInstance()
         // Optionally set a seed number to generate nodeId
         .setRandomSeed(0)
 
-        // Optionally set the capacity for our Disruptor's ring
-        // Note: Must be a power-of-2 number
-        // Default: 1024
-        .setDisruptorCapacity(256)
-
-        // Optionally set the number of threads used by Disruptor
-        // Default: 4
-        .setDisruptorParallelism(8)
+        // Optionally set the number of threads to stimulate Crons
+        // Default: 8
+        .setThreads(8)
         
         // Optionally set the number of maximum requests per second
         .setMaxRps(1000)
 
         .build();
 
-locust.run(new AsyncCron());
+locust.register(new AsyncCron());
 
-// or if you can run multiple crons
-locust.run(
+// or register multiple crons
+locust.register(
     new AsyncCron(host, port),
     new SyncCron(host, port)
 );
@@ -323,6 +313,10 @@ To effectively benchmark with Locust, we may need to use `connection pooling`
 If you find anything wrong or would like to contribute in any way, feel free to create a pull request/open an issue/send me a message. Any comments are welcome!
 
 #### 7. History
+**v1.0.0**
+- Released in 13/08/2018
+- Simplified APIs
+- Used a better mechanism for scheduling crons. This mechanism effectively stimulates hatching users gradually
 
 **v0.1.2**
 - Released in 27/06/2018

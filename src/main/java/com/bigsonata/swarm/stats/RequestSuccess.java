@@ -5,5 +5,5 @@ public class RequestSuccess {
   public String type;
   public String name;
   public long responseTime;
-  public long contentLength;
+  public long responseLength;
 }

@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.asynchttpclient.Dsl.config;
 
@@ -31,14 +32,27 @@ public abstract class HttpCron extends Cron {
                     .build();
     protected final Logger LOGGER;
     AsyncHttpClient asyncHttpClient;
+    protected AtomicInteger pending = new AtomicInteger(0);
 
     public HttpCron(Props props) {
         super(props.setType("http"));
         this.LOGGER = LoggerFactory.getLogger(HttpCron.class.getSimpleName());
     }
 
+    protected void waitUntilNoPending()  {
+        while(pending.get() != 0){
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                return;
+            }
+        }
+    }
+
     @Override
     public void dispose() {
+        waitUntilNoPending();
+
         if (asyncHttpClient == null) {
             return;
         }

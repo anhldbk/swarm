@@ -1,6 +1,8 @@
 package com.bigsonata.swarm.stats;
 
-import com.bigsonata.swarm.Locust;
+import com.bigsonata.swarm.Context;
+import com.bigsonata.swarm.common.Disposable;
+import com.bigsonata.swarm.common.Initializable;
 import com.bigsonata.swarm.common.Utils;
 import com.bigsonata.swarm.interop.LoopingThread;
 import org.slf4j.Logger;
@@ -11,7 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public abstract class StatsService {
+public abstract class StatsService implements Disposable, Initializable {
   private static final Logger logger =
       LoggerFactory.getLogger(StatsService.class.getCanonicalName());
   private LoopingThread statsTimer;
@@ -20,7 +22,7 @@ public abstract class StatsService {
   private StatsEntry total;
   private int statInterval = 3000;
 
-  public StatsService(Locust.Context ctx) {
+  public StatsService(Context ctx) {
     this.entries = new HashMap<>(8);
     this.errors = new HashMap<>(8);
     this.total = new StatsEntry("Total");
@@ -48,7 +50,7 @@ public abstract class StatsService {
   /**
    * Override this method to submit stats data
    *
-   * @param data
+   * @param data  Data
    */
   public abstract void onData(Map data);
 
@@ -57,7 +59,7 @@ public abstract class StatsService {
   }
 
   public void report(RequestSuccess request) {
-    logRequest(request.type, request.name, request.responseTime, request.contentLength);
+    logRequest(request.type, request.name, request.responseTime, request.responseLength);
   }
 
   public void report(RequestFailure request) {
@@ -74,9 +76,9 @@ public abstract class StatsService {
     return entry;
   }
 
-  protected void logRequest(String method, String name, long responseTime, long contentLength) {
-    this.total.log(responseTime, contentLength);
-    this.get(name, method).log(responseTime, contentLength);
+  protected void logRequest(String method, String name, long responseTime, long responseLength) {
+    this.total.log(responseTime, responseLength);
+    this.get(name, method).log(responseTime, responseLength);
   }
 
   protected void logError(String method, String name, String error) {

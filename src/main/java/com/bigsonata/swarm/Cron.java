@@ -2,7 +2,7 @@ package com.bigsonata.swarm;
 
 public abstract class Cron implements Cloneable, Runnable {
   protected final Props props;
-  private final Locust.Context context = Locust.Context.getInstance();
+  private final Context context = Context.getInstance();
 
   public Cron(Props props) {
     this.props = props;
@@ -28,16 +28,16 @@ public abstract class Cron implements Cloneable, Runnable {
     this.context.recordFailure(this, responseTime, error);
   }
 
-  public void recordSuccess(String type, long responseTime, long contentLength) {
-    this.context.recordSuccess(this, responseTime, contentLength);
+  public void recordSuccess(String type, long responseTime, long responseLength) {
+    this.context.recordSuccess(this, responseTime, responseLength);
   }
 
   public void recordSuccess(String type, long responseTime) {
     this.recordSuccess(type, responseTime, 0);
   }
 
-  public void recordSuccess(long responseTime, long contentLength) {
-    this.recordSuccess(this.props.type, responseTime, contentLength);
+  public void recordSuccess(long responseTime, long responseLength) {
+    this.recordSuccess(this.props.type, responseTime, responseLength);
   }
 
   public void recordSuccess(long responseTime) {
@@ -47,7 +47,6 @@ public abstract class Cron implements Cloneable, Runnable {
   @Override
   public void run() {
     process();
-    this.context.schedule(this);
   }
 
   public abstract void dispose();
