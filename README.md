@@ -196,7 +196,7 @@ For example, in our `AsyncCron`:
 ```java
 public class AsyncCron extends Cron {
     private static final Logger logger = LoggerFactory.getLogger(AsyncCron.class);
-    private MessageSendUser message;
+    private Message message;
     private final int port;
     private final String host;
 
@@ -228,12 +228,10 @@ public class AsyncCron extends Cron {
             @Override
             public void onError(Throwable throwable) {
                 throwable.printStackTrace();
-                logger.error(throwable.getMessage());
             }
 
             @Override
             public void onCompleted() {
-
             }
 
         };
@@ -252,19 +250,19 @@ public class AsyncCron extends Cron {
     }
 
     ManagedChannel channel;
-    MessageToUserGrpc.MessageToUserStub stub;
+    MessageServiceGrpc.MessageServiceStub stub;
 
     @Override
     public void initialize() {
         boolean usePlainText = true;
-        message = MessageSendUser.newBuilder()
+        message = Message.newBuilder()
                 .setData(ByteString.copyFromUtf8("Data sample"))
                 .setPushtitle("Apns push test")
                 .build();
         channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext(usePlainText)
                 .build();
-        stub = MessageToUserGrpc.newStub(channel);
+        stub = MessageServiceGrpc.newStub(channel);
     }
 
 }
@@ -289,11 +287,11 @@ Locust locust = Locust.Builder.newInstance()
         // Optionally set the number of threads to stimulate Crons
         // Default: 8
         .setThreads(8)
-        
+
         // Optionally set the number of maximum requests per second
         .setMaxRps(1000)
 
-        .build();
+        .build()
 
 locust.register(new AsyncCron());
 
@@ -313,6 +311,11 @@ To effectively benchmark with Locust, we may need to use `connection pooling`
 If you find anything wrong or would like to contribute in any way, feel free to create a pull request/open an issue/send me a message. Any comments are welcome!
 
 #### 7. History
+
+**v1.0.1**
+- Released in 10/10/2018
+- Increased the internal buffer size to 32k (which effectively affect our Crons' througput)
+
 **v1.0.0**
 - Released in 13/08/2018
 - Simplified APIs

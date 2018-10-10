@@ -10,15 +10,14 @@ import com.bigsonata.swarm.stats.RequestFailure;
 import com.bigsonata.swarm.stats.RequestSuccess;
 import com.bigsonata.swarm.stats.StatsService;
 import com.google.common.util.concurrent.RateLimiter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Locust class exposes all the APIs of locust4j. Use Locust.getInstance() to get a Locust
@@ -427,10 +426,14 @@ public class Locust implements Disposable, Initializable {
         Stopped,
     }
 
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     public static class Builder {
         private String masterHost = "127.0.0.1";
         private int masterPort = 5557;
-        private int bufferSize = 1024;
+        private int bufferSize = 32768;
         private int threads = 8;
         private int statInterval = 2000;
         private int randomSeed = 0;
@@ -497,13 +500,28 @@ public class Locust implements Disposable, Initializable {
         }
 
         /**
-         * Set the maximum requests per second restricted on this Swarm application
+         * [Optional] Set the maximum requests per second restricted on this Swarm application
          *
          * @param maxRps A positive number
          * @return The current Builder instance
          */
         public Builder setMaxRps(int maxRps) {
             this.maxRps = maxRps;
+            return this;
+        }
+
+        /**
+         * [Optional] Set the internal buffer size. Default value is 32k which is may enough
+         *
+         * NOTE: This is the disruptor's ring size.
+         * + The size must be a power of 2
+         * + If you set it too small, you may experience low throughput when your Crons run
+         *
+         * @param bufferSize A positive number which is a power of 2
+         * @return The current Builder instance
+         */
+        public Builder setBufferSize(int bufferSize) {
+            this.bufferSize = bufferSize;
             return this;
         }
     }
