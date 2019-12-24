@@ -17,6 +17,7 @@ public class StatsEntry {
   public AtomicLong minResponseTime;
   public AtomicLong maxResponseTime;
   public Histogram numReqsPerSec;
+  public Histogram numFailPerSec;
   public Histogram responseTimes;
   public AtomicLong totalResponseLength;
   public AtomicLong startTime;
@@ -41,6 +42,7 @@ public class StatsEntry {
     this.maxResponseTime = new AtomicLong(0);
     this.lastRequestTimestamp = new AtomicLong(Utils.currentTimeInSeconds());
     this.numReqsPerSec = new Histogram();
+    this.numFailPerSec = new Histogram();
     this.totalResponseLength = new AtomicLong(0);
   }
 
@@ -88,6 +90,8 @@ public class StatsEntry {
   }
 
   public void logError(String error) {
+    long now = Utils.currentTimeInSeconds();
+    this.numFailPerSec.inc(now);
     this.numFailures.incrementAndGet();
   }
 
@@ -98,6 +102,9 @@ public class StatsEntry {
     result.put("last_request_timestamp", this.lastRequestTimestamp.get());
     result.put("start_time", this.startTime.get());
     result.put("num_requests", this.numRequests.get());
+    // Locust4j doesn't allow None response time for requests like locust.
+    // num_none_requests is added to keep compatible with locust.
+    result.put("num_none_requests", 0);
     result.put("num_failures", this.numFailures.get());
     result.put("total_response_time", this.totalResponseTime.get());
     result.put("max_response_time", this.maxResponseTime.get());
@@ -105,6 +112,7 @@ public class StatsEntry {
     result.put("total_content_length", this.totalResponseLength.get());
     result.put("response_times", this.responseTimes);
     result.put("num_reqs_per_sec", this.numReqsPerSec);
+    result.put("num_fail_per_sec", this.numFailPerSec);
     return result;
   }
 
