@@ -12,3 +12,4 @@ release.properties
 .vscode/
 example/src/main/resources/
 example/src/test/
+*.pyc
