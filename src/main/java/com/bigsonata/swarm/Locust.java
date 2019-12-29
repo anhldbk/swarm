@@ -142,7 +142,6 @@ public class Locust implements Disposable, Initializable {
     State currentState = this.state.get();
 
     boolean updatable = (currentState == State.Running || currentState == State.Hatching);
-    logger.info(">> Sending report state={}\tupdatable={}", currentState.toString(), updatable);
     if (!updatable) {
       // no need to send report
       return;
