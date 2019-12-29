@@ -15,8 +15,8 @@ public abstract class LoopingThread implements Runnable {
   /**
    * Construct an auto-start looping thread with delays between consecutive processing steps
    *
-   * @param name	The thread name
-   * @param interval	Interval (in ms)
+   * @param name The thread name
+   * @param interval Interval (in ms)
    */
   public LoopingThread(String name, int interval) {
     super();
@@ -56,6 +56,7 @@ public abstract class LoopingThread implements Runnable {
   /**
    * Override this method in your descendant classes Returns false will break the loop NOTE: It will
    * be invoked all over again
+   *
    * @return An action
    * @throws Exception Exception
    */

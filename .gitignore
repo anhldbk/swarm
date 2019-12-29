@@ -10,5 +10,6 @@ target/
 *.releaseBackup
 release.properties
 .vscode/
-examples/http-benchmark/src/main/resources/
-examples/http-benchmark/src/test/
+example/src/main/resources/
+example/src/test/
+*.pyc

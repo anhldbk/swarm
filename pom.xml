@@ -4,7 +4,7 @@
 
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
 
     <parent>
             <groupId>org.sonatype.oss</groupId>
