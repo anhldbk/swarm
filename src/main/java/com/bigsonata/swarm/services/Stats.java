@@ -17,16 +17,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public abstract class StatsService implements Disposable, Initializable {
+public abstract class Stats implements Disposable, Initializable {
   private static final Logger logger =
-      LoggerFactory.getLogger(StatsService.class.getCanonicalName());
+      LoggerFactory.getLogger(Stats.class.getCanonicalName());
   private LoopingThread statsTimer;
   private Map<String, StatsEntry> entries;
   private Map<String, StatsError> errors;
   private StatsEntry total;
   private int statInterval = 3000;
 
-  public StatsService(Context ctx) {
+  public Stats(Context ctx) {
     this.entries = new HashMap<>(8);
     this.errors = new HashMap<>(8);
     this.total = new StatsEntry("Total");

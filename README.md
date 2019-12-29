@@ -44,7 +44,7 @@ Before using `Swarm`, you must declare it as a dependency of your Maven project.
 <dependency>
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -194,77 +194,34 @@ You need to define your loading test by deriving class `Cron`:
 For example, in our `AsyncCron`:
 
 ```java
-public class AsyncCron extends Cron {
-    private static final Logger logger = LoggerFactory.getLogger(AsyncCron.class);
-    private Message message;
-    private final int port;
-    private final String host;
+public class TimerCron extends Cron {
+  public TimerCron() {
+    super(Props.create().setName("timer").setAsync(false));
+  }
 
-    public AsyncCron(String host, int port) {
-        super(
-                Props.createAsync()
-                        .setType("grpc")
-                        .setName("push-service")
-        );
-        this.host = host;
-        this.port = port;
+  @Override
+  public void process() {
+    try {
+      System.out.println("> Processing...");
+      long start = System.currentTimeMillis();
+      Thread.sleep(1000);
+      long duration = System.currentTimeMillis() - start;
+      recordSuccess(duration);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
+  }
 
-    @Override
-    public void dispose() {
-        channel.shutdown();
-    }
+  @Override
+  public Cron clone() {
+    return new TimerCron();
+  }
 
-    @Override
-    public void process() {
-        long startTime = System.currentTimeMillis();
-        StreamObserver<DataResponse> observer = new StreamObserver<DataResponse>() {
-            @Override
-            public void onNext(DataResponse dataResponse) {
-                long elapsed = System.currentTimeMillis() - startTime;
-                recordSuccess(elapsed);
-            }
+  @Override
+  public void dispose() {}
 
-            @Override
-            public void onError(Throwable throwable) {
-                throwable.printStackTrace();
-            }
-
-            @Override
-            public void onCompleted() {
-            }
-
-        };
-        try {
-            stub.sendMessage(message, observer);
-        } catch (Exception ex) {
-            long elapsed = System.currentTimeMillis() - startTime;
-            recordFailure(elapsed, ex.getMessage());
-            ex.printStackTrace();
-        }
-    }
-
-    @Override
-    public Cron clone() {
-        return new AsyncCron(this.host, this.port);
-    }
-
-    ManagedChannel channel;
-    MessageServiceGrpc.MessageServiceStub stub;
-
-    @Override
-    public void initialize() {
-        boolean usePlainText = true;
-        message = Message.newBuilder()
-                .setData(ByteString.copyFromUtf8("Data sample"))
-                .setPushtitle("Apns push test")
-                .build();
-        channel = ManagedChannelBuilder.forAddress(host, port)
-                .usePlaintext(usePlainText)
-                .build();
-        stub = MessageServiceGrpc.newStub(channel);
-    }
-
+  @Override
+  public void initialize() {}
 }
 ```
 
@@ -273,44 +230,47 @@ public class AsyncCron extends Cron {
 After defining your crons, finally you need to instruct `Swarm` to start: 
 
 ```java
-Locust locust = Locust.Builder.newInstance()
-        .setMasterHost(masterHost)
-        .setMasterPort(masterPort)
+Locust.Builder.newInstance()
+    .setMasterHost(masterHost)
+    .setMasterPort(masterPort)
 
-        // Optionally set the interval (in ms) to report statistics
-        // Default: 2000
-        .setStatInterval(2000)
+    // Optionally set the interval (in ms) to report statistics
+    // Default: 2000
+    .setStatInterval(2000)
 
-        // Optionally set a seed number to generate nodeId
-        .setRandomSeed(0)
+    // Optionally set a seed number to generate nodeId
+    .setRandomSeed(0)
 
-        // Optionally set the number of threads to stimulate Crons
-        // Default: 8
-        .setThreads(8)
+    // Optionally set the number of threads to stimulate Crons
+    // Default: 8
+    .setThreads(8)
 
-        // Optionally set the number of maximum requests per second
-        .setMaxRps(1000)
+    // Optionally set the number of maximum requests per second
+    .setMaxRps(1000)
 
-        .build()
-
-locust.register(new AsyncCron());
-
-// or register multiple crons
-locust.register(
-    new AsyncCron(host, port),
-    new SyncCron(host, port)
-);
+    // Register cron tasks
+    .setCrons(new TimerCron());
+    .build()
 ```
 
 #### 5. Tips
 
-To effectively benchmark with Locust, we may need to use `connection pooling`
+- To effectively benchmark with Locust, we may need to use `connection pooling`
+
+- See the demo in `src/main/java/com.bigsonata/example`
+
 
 #### 6. Contributions
 
 If you find anything wrong or would like to contribute in any way, feel free to create a pull request/open an issue/send me a message. Any comments are welcome!
 
 #### 7. History
+
+**v1.1.0**
+- Released in 29/12/2019
+- Fixed a compatibility issue wit Locust with version > v0.10.0. Thank you [BogdanLivadariu](https://github.com/BogdanLivadariu) for suggesting solutions.
+- Locust Builder to include `setCrons`
+- Refactored code & documentation
 
 **v1.0.1**
 - Released in 10/10/2018
