@@ -13,10 +13,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -70,7 +67,7 @@ public class Locust implements Disposable, Initializable {
     initializeContext();
     initializeTransport();
     initializeStatsService();
-    //    initializeHeartBeatService();
+    initializeCrons();
   }
 
   private void initializeContext() {
@@ -137,6 +134,17 @@ public class Locust implements Disposable, Initializable {
     heartBeatService = new HeartBeatService(transport, this);
     heartBeatService.initialize();
   }
+
+  private synchronized void initializeCrons() {
+    if (this.started) {
+      // Don't call Locust.register() multiply times.
+      return;
+    }
+
+    this.prototypes = builder.crons;
+    this.state.set(State.Ready);
+    this.started = true;
+  };
 
   private void sendReport(Map data) {
     State currentState = this.state.get();
@@ -371,7 +379,7 @@ public class Locust implements Disposable, Initializable {
    * @param data Accompanied data
    */
   private void send(String type, Map data) {
-    logger.info("Sending {} message...", type);
+    logger.debug("Sending {} message...", type);
     try {
       transport.send(new Message(type, data, this.nodeID));
     } catch (Exception e) {
@@ -454,6 +462,7 @@ public class Locust implements Disposable, Initializable {
     private int statInterval = 2000;
     private int randomSeed = 0;
     private int maxRps = 0;
+    private List<Cron> crons = null;
 
     public static Builder newInstance() {
       return new Builder();
@@ -463,7 +472,15 @@ public class Locust implements Disposable, Initializable {
       if ((bufferSize & (bufferSize - 1)) != 0) {
         throw new Exception("Disruptor capacity must be a power of 2");
       }
+      if (crons == null) {
+        throw new Exception("Must provide Crons");
+      }
       return new Locust(this);
+    }
+
+    public Builder setCrons(Cron... crons) {
+      this.crons = Arrays.asList(crons);
+      return this;
     }
 
     /**
