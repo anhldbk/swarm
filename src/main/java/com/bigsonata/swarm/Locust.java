@@ -204,6 +204,7 @@ public class Locust implements Disposable, Initializable {
    *
    * @param crons List of crons to register
    */
+  @Deprecated
   public void register(Cron... crons) {
     List<Cron> crs = new ArrayList<>();
     for (Cron task : crons) {
@@ -217,6 +218,7 @@ public class Locust implements Disposable, Initializable {
    *
    * @param crons List of crons to register
    */
+  @Deprecated
   public synchronized void register(List<Cron> crons) {
     if (this.started) {
       // Don't call Locust.register() multiply times.
