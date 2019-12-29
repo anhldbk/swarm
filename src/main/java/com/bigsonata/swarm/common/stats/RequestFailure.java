@@ -1,4 +1,4 @@
-package com.bigsonata.swarm.stats;
+package com.bigsonata.swarm.common.stats;
 
 /** Created by anhld on 1/28/18. */
 public class RequestFailure {

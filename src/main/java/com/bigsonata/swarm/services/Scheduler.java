@@ -1,5 +1,7 @@
-package com.bigsonata.swarm;
+package com.bigsonata.swarm.services;
 
+import com.bigsonata.swarm.Cron;
+import com.bigsonata.swarm.Locust;
 import com.bigsonata.swarm.common.CircularList;
 import com.bigsonata.swarm.common.ConcurrentCircularList;
 import com.bigsonata.swarm.common.Disposable;
@@ -17,50 +19,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Scheduler implements Runnable, Disposable, Initializable {
   private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
   private final Builder builder;
+  protected AtomicInteger pending = new AtomicInteger(0);
   @Nullable private RateLimiter rateLimiter;
   private Thread executor = null;
   private DisruptorBroker<Runnable> disruptor = null;
   private CircularList<Cron> queue = new ConcurrentCircularList<>();
-  protected AtomicInteger pending = new AtomicInteger(0);
-
-  public static class Builder {
-    private int parallelism = 8;
-    private int bufferSize = 1024;
-    private int maxRps = -1;
-    private Locust locust;
-
-    public Builder setParallelism(int parallelism) {
-      this.parallelism = parallelism;
-      return this;
-    }
-
-    public Builder setBufferSize(int bufferSize) {
-      this.bufferSize = bufferSize;
-      return this;
-    }
-
-    public Builder setMaxRps(int maxRps) {
-      this.maxRps = maxRps;
-      return this;
-    }
-
-    public Builder setLocust(Locust locust) {
-      this.locust = locust;
-      return this;
-    }
-
-    public Scheduler build() {
-      return new Scheduler(this);
-    }
-  }
-
-  public static Builder newBuilder() {
-    return new Builder();
-  }
 
   private Scheduler(Builder builder) {
     this.builder = builder;
     initialize();
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
   }
 
   public void initialize() {
@@ -79,7 +50,7 @@ public class Scheduler implements Runnable, Disposable, Initializable {
         };
     try {
       disruptor =
-          DisruptorBroker.<Runnable>newBuilder()
+          DisruptorBroker.newBuilder()
               .setBufferSize(builder.bufferSize)
               .setMessageHandler(handler)
               .setParallelism(builder.parallelism)
@@ -171,5 +142,36 @@ public class Scheduler implements Runnable, Disposable, Initializable {
     }
 
     logger.info("Terminating...");
+  }
+
+  public static class Builder {
+    private int parallelism = 8;
+    private int bufferSize = 1024;
+    private int maxRps = -1;
+    private Locust locust;
+
+    public Builder setParallelism(int parallelism) {
+      this.parallelism = parallelism;
+      return this;
+    }
+
+    public Builder setBufferSize(int bufferSize) {
+      this.bufferSize = bufferSize;
+      return this;
+    }
+
+    public Builder setMaxRps(int maxRps) {
+      this.maxRps = maxRps;
+      return this;
+    }
+
+    public Builder setLocust(Locust locust) {
+      this.locust = locust;
+      return this;
+    }
+
+    public Scheduler build() {
+      return new Scheduler(this);
+    }
   }
 }

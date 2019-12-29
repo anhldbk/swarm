@@ -1,4 +1,4 @@
-package com.bigsonata.swarm.stats;
+package com.bigsonata.swarm.common.stats;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

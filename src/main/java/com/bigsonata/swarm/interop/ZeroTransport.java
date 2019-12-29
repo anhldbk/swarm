@@ -229,6 +229,7 @@ public abstract class ZeroTransport extends Transport {
 
   class TransportMonitor extends LoopingThread {
     ZMQ.Socket socket;
+    int reconnectCounter = 0;
     private State state;
     private ZMonitor monitor;
 
@@ -249,8 +250,6 @@ public abstract class ZeroTransport extends Transport {
       ////      socket.setReceiveTimeOut(interval);
       //      socket.setIdentity(nodeId.getBytes());
     }
-
-    int reconnectCounter = 0;
 
     void tryReconnect() {
       reconnectCounter = (++reconnectCounter) % 100;

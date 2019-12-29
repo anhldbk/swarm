@@ -1,5 +1,7 @@
 package com.bigsonata.swarm;
 
+import com.bigsonata.swarm.services.Scheduler;
+
 /** @author anhld on 7/28/18 */
 public class Context {
   private static Context instance = new Context();

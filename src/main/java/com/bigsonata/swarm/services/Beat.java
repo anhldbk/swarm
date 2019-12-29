@@ -1,5 +1,6 @@
-package com.bigsonata.swarm;
+package com.bigsonata.swarm.services;
 
+import com.bigsonata.swarm.Locust;
 import com.bigsonata.swarm.common.Disposable;
 import com.bigsonata.swarm.common.Initializable;
 import com.bigsonata.swarm.interop.LoopingThread;
@@ -11,16 +12,16 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HeartBeatService implements Disposable, Initializable {
+public class Beat implements Disposable, Initializable {
 
   private static final Logger logger =
-      LoggerFactory.getLogger(HeartBeatService.class.getCanonicalName());
+      LoggerFactory.getLogger(Beat.class.getCanonicalName());
   private final Transport transport;
   private final Locust locust;
 
   private LoopingThread heartBeatTimer;
 
-  public HeartBeatService(Transport transport, Locust locust) {
+  public Beat(Transport transport, Locust locust) {
     this.transport = transport;
     this.locust = locust;
   }
@@ -51,7 +52,7 @@ public class HeartBeatService implements Disposable, Initializable {
               Map<String, String> data = new HashMap<>();
 
               data.put("state", String.valueOf(locust.getState()).toLowerCase());
-              transport.send(new Message("heartbeat", data, HeartBeatService.this.locust.nodeID));
+              transport.send(new Message("heartbeat", data, Beat.this.locust.nodeID));
             } catch (Exception e) {
               return Action.BREAK;
             }

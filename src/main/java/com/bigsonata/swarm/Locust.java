@@ -6,9 +6,11 @@ import com.bigsonata.swarm.common.Utils;
 import com.bigsonata.swarm.interop.Message;
 import com.bigsonata.swarm.interop.Transport;
 import com.bigsonata.swarm.interop.ZeroTransport;
-import com.bigsonata.swarm.stats.RequestFailure;
-import com.bigsonata.swarm.stats.RequestSuccess;
-import com.bigsonata.swarm.stats.StatsService;
+import com.bigsonata.swarm.services.Beat;
+import com.bigsonata.swarm.services.Scheduler;
+import com.bigsonata.swarm.common.stats.RequestFailure;
+import com.bigsonata.swarm.common.stats.RequestSuccess;
+import com.bigsonata.swarm.services.Stats;
 import com.google.common.util.concurrent.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +31,7 @@ public class Locust implements Disposable, Initializable {
    * Every locust4j instance registers a unique nodeID to the master when it makes a connection.
    * NodeID is kept by Runner.
    */
-  protected String nodeID = null;
+  public String nodeID = null;
 
   /** Number of clients required by the master, locust4j use threads to simulate clients. */
   protected int numCrons = 0;
@@ -42,7 +44,7 @@ public class Locust implements Disposable, Initializable {
   private Transport transport = null;
   private boolean started = false;
   private Scheduler scheduler;
-  private StatsService statsService = null;
+  private Stats statsService = null;
   /** Current state of runner. */
   private AtomicReference<State> state = new AtomicReference<>(State.IDLE);
   /** Task instances submitted by user. */
@@ -51,7 +53,7 @@ public class Locust implements Disposable, Initializable {
   /** Hatch rate required by the master. Hatch rate means clients/s. */
   private double hatchRate = 0;
 
-  private HeartBeatService heartBeatService;
+  private Beat beatService;
 
   private Locust(Builder builder) {
     this.builder = builder;
@@ -59,6 +61,10 @@ public class Locust implements Disposable, Initializable {
     initialize();
 
     Locust.instance = this;
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
   }
 
   public void initialize() {
@@ -121,7 +127,7 @@ public class Locust implements Disposable, Initializable {
 
   private void initializeStatsService() {
     statsService =
-        new StatsService(context) {
+        new Stats(context) {
           @Override
           public void onData(Map data) {
             Locust.this.sendReport(data);
@@ -130,9 +136,9 @@ public class Locust implements Disposable, Initializable {
     statsService.initialize();
   }
 
-  private void initializeHeartBeatService() {
-    heartBeatService = new HeartBeatService(transport, this);
-    heartBeatService.initialize();
+    private void initializeHeartBeatService() {
+    beatService = new Beat(transport, this);
+    beatService.initialize();
   }
 
   private synchronized void initializeCrons() {
@@ -144,7 +150,7 @@ public class Locust implements Disposable, Initializable {
     this.prototypes = builder.crons;
     this.state.set(State.Ready);
     this.started = true;
-  };
+  }
 
   private void sendReport(Map data) {
     State currentState = this.state.get();
@@ -206,7 +212,7 @@ public class Locust implements Disposable, Initializable {
     startHatching(numClients, hatchRate.doubleValue());
   }
 
-  /**
+    /**
    * Add prototypes to Runner, connect to master and wait for messages of master.
    *
    * @param crons List of crons to register
@@ -235,7 +241,7 @@ public class Locust implements Disposable, Initializable {
     this.prototypes = crons;
     this.state.set(State.Ready);
     this.started = true;
-  };
+  }
 
   /**
    * when JVM is shutting down, send a `quit` message to master, then master will remove this slave
@@ -448,10 +454,6 @@ public class Locust implements Disposable, Initializable {
 
     /** Runner is stopped, its thread pool is destroyed, the test is stopped. */
     Stopped,
-  }
-
-  public static Builder newBuilder() {
-    return new Builder();
   }
 
   public static class Builder {

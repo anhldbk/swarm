@@ -1,10 +1,14 @@
-package com.bigsonata.swarm.stats;
+package com.bigsonata.swarm.services;
 
 import com.bigsonata.swarm.Context;
 import com.bigsonata.swarm.common.Disposable;
 import com.bigsonata.swarm.common.Initializable;
 import com.bigsonata.swarm.common.Utils;
 import com.bigsonata.swarm.interop.LoopingThread;
+import com.bigsonata.swarm.common.stats.RequestFailure;
+import com.bigsonata.swarm.common.stats.RequestSuccess;
+import com.bigsonata.swarm.common.stats.StatsEntry;
+import com.bigsonata.swarm.common.stats.StatsError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +54,7 @@ public abstract class StatsService implements Disposable, Initializable {
   /**
    * Override this method to submit stats data
    *
-   * @param data  Data
+   * @param data Data
    */
   public abstract void onData(Map data);
 

@@ -1,6 +1,6 @@
 package com.bigsonata.swarm.interop;
 
-import com.bigsonata.swarm.stats.Histogram;
+import com.bigsonata.swarm.common.stats.Histogram;
 import org.msgpack.core.*;
 
 import java.io.IOException;

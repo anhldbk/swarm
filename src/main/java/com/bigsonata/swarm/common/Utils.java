@@ -18,7 +18,7 @@ public class Utils {
       byte[] bytes = messageDigest.digest();
       StringBuilder sb = new StringBuilder(33);
       for (int i = 0; i < bytes.length; i++) {
-        sb.append(Integer.toHexString((bytes[i] & 0xFF) | 0x100).substring(1, 3));
+        sb.append(Integer.toHexString((bytes[i] & 0xFF) | 0x100), 1, 3);
       }
       return sb.toString();
     } catch (NoSuchAlgorithmException ex) {
@@ -30,7 +30,7 @@ public class Utils {
 
   public static String getNodeID(int node) {
     node = node % Snowflake.MAX_NODE;
-    return "swarm-" + String.valueOf(Snowflake.getInstance(node).nextId());
+    return "swarm-" + Snowflake.getInstance(node).nextId();
   }
 
   public static long round(long value, int places) {
@@ -50,7 +50,7 @@ public class Utils {
   /**
    * Get the current timestamp in millis.
    *
-   * @return  The current timestamp
+   * @return The current timestamp
    */
   public static long now() {
     return System.currentTimeMillis();
@@ -59,7 +59,7 @@ public class Utils {
   /**
    * Get the current timestamp in seconds.
    *
-   * @return  The current timestamp
+   * @return The current timestamp
    */
   public static long currentTimeInSeconds() {
     return now() / 1000;

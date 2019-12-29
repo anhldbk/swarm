@@ -7,7 +7,7 @@ public abstract class Transport {
    * send message to master
    *
    * @param message A Message
-   * @throws IOException  IOException
+   * @throws IOException IOException
    */
   public abstract void send(Message message) throws Exception;
 
