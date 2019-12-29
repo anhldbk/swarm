@@ -70,7 +70,7 @@ public class Locust implements Disposable, Initializable {
     initializeContext();
     initializeTransport();
     initializeStatsService();
-//    initializeHeartBeatService();
+    //    initializeHeartBeatService();
   }
 
   private void initializeContext() {
@@ -93,7 +93,7 @@ public class Locust implements Disposable, Initializable {
             .build();
   }
 
-  private void onReady(){
+  private void onReady() {
     sendReady();
     initializeHeartBeatService();
   }
@@ -405,9 +405,6 @@ public class Locust implements Disposable, Initializable {
   }
 
   public void dispose() {
-    if (this.state.get() == State.Stopped) {
-      return;
-    }
     logger.warn("Disposing...");
     sendQuit();
 
