@@ -44,7 +44,7 @@ Before using `Swarm`, you must declare it as a dependency of your Maven project.
 <dependency>
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 </dependency>
 ```
 
