@@ -16,6 +16,8 @@ public class Beat implements Disposable, Initializable {
 
   private static final Logger logger =
       LoggerFactory.getLogger(Beat.class.getCanonicalName());
+  private final OperatingSystemMXBean osBean =
+          ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
   private final Transport transport;
   private final Locust locust;
 
@@ -50,7 +52,7 @@ public class Beat implements Disposable, Initializable {
               counter = (++counter) % 20;
               if (counter == 0) logger.info("Beating...");
               Map<String, String> data = new HashMap<>();
-
+              data.put("current_cpu_usage", (int) (osBean.getProcessCpuLoad()*100));
               data.put("state", String.valueOf(locust.getState()).toLowerCase());
               transport.send(new Message("heartbeat", data, Beat.this.locust.nodeID));
             } catch (Exception e) {
