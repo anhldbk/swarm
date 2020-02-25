@@ -4,7 +4,7 @@
 
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 
     <parent>
             <groupId>org.sonatype.oss</groupId>
@@ -147,4 +147,10 @@
         </plugins>
     </build>
 
+
+  <scm>
+    <connection>scm:svn:http://svn.sonatype.org/spice/tags/locust-swarm-1.1.0</connection>
+    <developerConnection>scm:svn:https://svn.sonatype.org/spice/tags/locust-swarm-1.1.0</developerConnection>
+    <url>http://svn.sonatype.org/spice/tags/locust-swarm-1.1.0</url>
+  </scm>
 </project>
