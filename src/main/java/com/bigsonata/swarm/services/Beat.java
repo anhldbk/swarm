@@ -6,9 +6,11 @@ import com.bigsonata.swarm.common.Initializable;
 import com.bigsonata.swarm.interop.LoopingThread;
 import com.bigsonata.swarm.interop.Message;
 import com.bigsonata.swarm.interop.Transport;
+import com.sun.management.OperatingSystemMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,6 +18,8 @@ public class Beat implements Disposable, Initializable {
 
   private static final Logger logger =
       LoggerFactory.getLogger(Beat.class.getCanonicalName());
+  private final OperatingSystemMXBean osBean =
+          ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
   private final Transport transport;
   private final Locust locust;
 
@@ -50,7 +54,7 @@ public class Beat implements Disposable, Initializable {
               counter = (++counter) % 20;
               if (counter == 0) logger.info("Beating...");
               Map<String, String> data = new HashMap<>();
-
+              data.put("current_cpu_usage", String.valueOf((int) (osBean.getProcessCpuLoad()*100)));
               data.put("state", String.valueOf(locust.getState()).toLowerCase());
               transport.send(new Message("heartbeat", data, Beat.this.locust.nodeID));
             } catch (Exception e) {
