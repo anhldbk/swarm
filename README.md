@@ -266,8 +266,8 @@ If you find anything wrong or would like to contribute in any way, feel free to 
 
 #### 7. History
 
-**v1.1.2**
-- Released in 25/02/2020
+**v1.1.3**
+- Released in 26/02/2020
 - Fixed a compatibility issue with Locust v0.14.4. Thank you [gungjodi](https://github.com/gungjodi) for his [PR](https://github.com/anhldbk/swarm/pull/12)
 
 **v1.1.0**
