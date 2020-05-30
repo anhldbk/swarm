@@ -44,7 +44,7 @@ Before using `Swarm`, you must declare it as a dependency of your Maven project.
 <dependency>
     <groupId>com.bigsonata.swarm</groupId>
     <artifactId>locust-swarm</artifactId>
-    <version>1.1.3</version>
+    <version>1.1.4</version>
 </dependency>
 ```
 
@@ -265,6 +265,10 @@ Locust.Builder.newInstance()
 If you find anything wrong or would like to contribute in any way, feel free to create a pull request/open an issue/send me a message. Any comments are welcome!
 
 #### 7. History
+
+**v1.1.4**
+- Released in 30/05/2020
+- Fixed a compatibility issue with Locust v0.14.6 (reported [here](https://github.com/anhldbk/swarm/issues/19))
 
 **v1.1.3**
 - Released in 26/02/2020
