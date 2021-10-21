@@ -98,7 +98,7 @@ public abstract class Stats implements Disposable, Initializable {
       entry = new StatsError(name, method, error);
       this.errors.put(key, entry);
     }
-    entry.occured();
+    entry.occurred();
   }
 
   public void clearAll() {
