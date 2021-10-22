@@ -264,7 +264,16 @@ Locust.Builder.newInstance()
 
 If you find anything wrong or would like to contribute in any way, feel free to create a pull request/open an issue/send me a message. Any comments are welcome!
 
+<a href="https://github.com/anhldbk/swarm/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=anhldbk/swarm" />
+</a>
+
 #### 7. History
+
+**v1.1.5**
+- Released in 22/10/2021
+- Fixed a compatibility issue with Locust on recoding `Occurrences` (with this [PR](https://github.com/anhldbk/swarm/pull/25))
+
 
 **v1.1.4**
 - Released in 30/05/2020
