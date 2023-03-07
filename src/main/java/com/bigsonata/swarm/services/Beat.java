@@ -56,7 +56,7 @@ public class Beat implements Disposable, Initializable {
               Map<String, Object> data = new HashMap<>();
               data.put("current_cpu_usage",(int) (osBean.getProcessCpuLoad()*100));
               data.put("state", String.valueOf(locust.getState()).toLowerCase());
-              transport.send(new Message("heartbeat", data, Beat.this.locust.nodeID));
+              transport.send(new Message("heartbeat", data, -1, Beat.this.locust.nodeID));
             } catch (Exception e) {
               return Action.BREAK;
             }
