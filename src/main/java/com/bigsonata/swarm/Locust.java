@@ -43,6 +43,11 @@ public class Locust implements Disposable, Initializable {
     protected int numCrons = 0;
 
     /**
+     * We save user_class_count in spawn message and send it back to master without modification.
+     */
+    protected Map<String, Integer> userClassesCountFromMaster;
+    
+    /**
      * Actual number of clients spawned
      */
     protected AtomicInteger actualNumClients = new AtomicInteger(0);
@@ -61,11 +66,6 @@ public class Locust implements Disposable, Initializable {
      * Task instances submitted by user.
      */
     private List<Cron> prototypes;
-
-    /**
-     * Hatch rate required by the master. Hatch rate means clients/s.
-     */
-    private double hatchRate = 0;
 
     private Beat beatService;
 
@@ -169,16 +169,17 @@ public class Locust implements Disposable, Initializable {
     private void sendReport(Map data) {
         State currentState = this.state.get();
 
-        boolean updatable = (currentState == State.Running || currentState == State.Hatching);
+        boolean updatable = (currentState == State.Running || currentState == State.Spawning);
         if (!updatable) {
             // no need to send report
             return;
         }
 
         data.put("user_count", actualNumClients.get());
+        data.put("user_classes_count", this.userClassesCountFromMaster);
 
         try {
-            transport.send(new Message("stats", data, nodeID));
+            transport.send(new Message("stats", data, -1, nodeID));
         } catch (Exception ex) {
             ex.printStackTrace();
             logger.error(ex.getMessage());
@@ -186,8 +187,8 @@ public class Locust implements Disposable, Initializable {
     }
 
     private void onMessage(Message message) throws Exception {
-        if (message.isHatch()) {
-            onHatch(message);
+        if (message.isSpawn()) {
+            onSpawn(message);
             return;
         }
 
@@ -214,21 +215,20 @@ public class Locust implements Disposable, Initializable {
         this.state.set(State.Stopped);
         this.scheduler.stop();
 
-        transport.send(new Message("client_stopped", null, nodeID));
-        transport.send(new Message("client_ready", null, nodeID));
+        transport.send(new Message("client_stopped", null, -1, nodeID));
+        transport.send(new Message("client_ready", null, -1,nodeID));
     }
 
-    private void onHatch(Message message) throws Exception {
-        sendHatching();
-        Map data = message.getData();
-        Float hatchRate = Float.valueOf(data.get("hatch_rate").toString());
+    private void onSpawn(Message message) throws Exception {
+        sendSpawning();
 
-        String previousNumKey = "num_clients";
-        String currentNumKey = "num_users";
-        // try to keep backward compatible
-        String numKey = data.containsKey(previousNumKey) ? previousNumKey : currentNumKey;
-        int numUsers = Integer.parseInt(data.get(numKey).toString());
-        startHatching(numUsers, hatchRate.doubleValue());
+        Map<String, Integer> userClassesCount = (Map<String, Integer>) message.getData().get("user_classes_count");
+        int amount = 0;
+        for (Map.Entry<String, Integer> entry : userClassesCount.entrySet()) {
+            amount = amount + entry.getValue();
+        }
+        this.userClassesCountFromMaster = userClassesCount;
+        startSpawning(amount);
     }
 
     /**
@@ -327,10 +327,9 @@ public class Locust implements Disposable, Initializable {
 
     private void spawn(int cronCount) {
         logger.info(
-                "Hatching and swarming {} clients at the rate of {} clients/s...",
-                cronCount,
-                this.hatchRate);
-        final RateLimiter rateLimiter = RateLimiter.create(this.hatchRate);
+                "Spawning {} client/s...",
+                cronCount);
+        final RateLimiter rateLimiter = RateLimiter.create(cronCount);
 
         float weightSum = 0;
         for (Cron cron : this.prototypes) {
@@ -367,33 +366,29 @@ public class Locust implements Disposable, Initializable {
             }
         }
 
-        this.onHatchCompleted();
+        this.onSpawnCompleted();
     }
 
-    protected void startHatching(int spawnCount, double hatchRate) {
+    protected void startSpawning(int spawnCount) {
         State currentState = this.state.get();
-        if (currentState != State.Ready && currentState != State.Stopped) {
-            logger.error("Invalid state. Terminating now...");
-            this.dispose();
-            System.exit(-1);
+
+        if (currentState == State.Ready){
+            statsService.clearAll();
         }
-        statsService.clearAll();
         this.numCrons = spawnCount;
 
-        logger.info("Start hatching...");
+        logger.info("Spawning...");
         logger.info("> spawnCount={}", spawnCount);
-        logger.info("> hatchRate={}", hatchRate);
 
-        this.state.set(State.Hatching);
+        this.state.set(State.Spawning);
 
         this.actualNumClients.set(0);
-        this.hatchRate = hatchRate;
         this.numCrons = spawnCount;
         this.spawn(numCrons);
     }
 
-    protected void onHatchCompleted() {
-        sendHatchCompleted();
+    protected void onSpawnCompleted() {
+        sendSpawningCompleted();
         this.state.set(State.Running);
     }
 
@@ -406,7 +401,7 @@ public class Locust implements Disposable, Initializable {
     private void send(String type, Map data) {
         logger.debug("Sending {} message...", type);
         try {
-            transport.send(new Message(type, data, this.nodeID));
+            transport.send(new Message(type, data, -1,this.nodeID));
         } catch (Exception e) {
             e.printStackTrace();
             logger.error("Can NOT send `{}` message", type);
@@ -417,15 +412,15 @@ public class Locust implements Disposable, Initializable {
         send(type, null);
     }
 
-    private void sendHatchCompleted() {
-        logger.info("Hatch completed!");
+    private void sendSpawningCompleted() {
+        logger.info("Spawning completed!");
         Map data = new HashMap(1);
-        data.put("count", this.numCrons);
-        send("hatch_complete", data);
+        data.put("user_classes_count", this.userClassesCountFromMaster);
+        send("spawning_complete", data);
     }
 
-    private void sendHatching() {
-        send("hatching");
+    private void sendSpawning() {
+        send("spawning");
     }
 
     protected void sendQuit() {
@@ -456,7 +451,7 @@ public class Locust implements Disposable, Initializable {
 
     private boolean isStoppable() {
         State currentState = this.state.get();
-        return currentState == State.Running || currentState == State.Hatching;
+        return currentState == State.Running || currentState == State.Spawning;
     }
 
     /**
@@ -472,7 +467,7 @@ public class Locust implements Disposable, Initializable {
         /**
          * Runner is submitting prototypes to its thread pool.
          */
-        Hatching,
+        Spawning,
 
         /**
          * Runner is done with submitting prototypes.

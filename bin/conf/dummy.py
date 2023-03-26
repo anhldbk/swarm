@@ -1,11 +1,14 @@
 # coding: utf8
 
-from locust import Locust, TaskSet, task
+from locust import User, TaskSet, task, between
+
 
 class MyTaskSet(TaskSet):
     @task(20)
     def hello(self):
         pass
 
-class Dummy(Locust):
-    task_set = MyTaskSet
+
+class Dummy(User):
+    wait_time = between(1, 5)
+    tasks = [MyTaskSet]
