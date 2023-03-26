@@ -270,6 +270,11 @@ If you find anything wrong or would like to contribute in any way, feel free to 
 
 #### 7. History
 
+**v1.1.6**
+- Released in 26/03/2023
+- Fixed a compatibility issue with Locust 2.x. Thank you [jayudey-wf](https://github.com/jayudey-wf) for his [PR](https://github.com/anhldbk/swarm/pull/27)
+
+
 **v1.1.5**
 - Released in 22/10/2021
 - Fixed a compatibility issue with Locust on recoding `Occurrences` (with this [PR](https://github.com/anhldbk/swarm/pull/25))
