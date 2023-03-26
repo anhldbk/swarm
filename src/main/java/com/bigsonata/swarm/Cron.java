@@ -46,7 +46,9 @@ public abstract class Cron implements Cloneable, Runnable {
 
   @Override
   public void run() {
-    if (!context.locust.isStopped()) process();
+    if (context.locust.isRunning()) {
+      process();
+    }
   }
 
   public abstract void dispose();

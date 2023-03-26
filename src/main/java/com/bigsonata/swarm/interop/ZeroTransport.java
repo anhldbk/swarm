@@ -12,16 +12,16 @@ import org.zeromq.ZMonitor;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** ZeroMQ transport for Locust */
+/**
+ * ZeroMQ transport for Locust
+ */
 public abstract class ZeroTransport extends Transport {
-  private static final Logger logger =
-      LoggerFactory.getLogger(ZeroTransport.class.getCanonicalName());
+  private static final Logger logger = LoggerFactory.getLogger(ZeroTransport.class.getCanonicalName());
   private final int port;
   private final String host;
   private final String nodeId;
   private final String addr;
   AtomicReference<State> state = new AtomicReference<State>(Transport.State.DISCONNECTED);
-  private int checkInterval = 0;
   private LoopingThread receiver;
   private ZContext zeroContext = null;
   private ZMQ.Socket commSocket;
@@ -34,9 +34,6 @@ public abstract class ZeroTransport extends Transport {
     this.port = ctx.getMasterPort();
     this.addr = String.format("tcp://%s:%d", host, port);
     this.nodeId = ctx.getNodeId();
-    if (checkInterval > 0) {
-      this.checkInterval = checkInterval;
-    }
   }
 
   private void initializeSender() {
@@ -45,24 +42,23 @@ public abstract class ZeroTransport extends Transport {
       if (sender != null) {
         return;
       }
-      MessageHandler<Message> messageHandler =
-          (s, message) -> {
-            if (message == null) {
-              return;
-            }
-            byte[] bytes = message.getBytes();
-            try {
-              if (!commSocket.send(bytes)) {
-                logger.error("Can NOT send");
-                return;
-              }
-            } catch (Exception ex) {
-              return;
-            }
-            if (message.isQuit()) {
-              waiter.countDown();
-            }
-          };
+      MessageHandler<Message> messageHandler = (s, message) -> {
+        if (message == null) {
+          return;
+        }
+        byte[] bytes = message.getBytes();
+        try {
+          if (!commSocket.send(bytes)) {
+            logger.error("Can NOT send");
+            return;
+          }
+        } catch (Exception ex) {
+          return;
+        }
+        if (message.isQuit()) {
+          waiter.countDown();
+        }
+      };
       this.sender = DisruptorBroker.Builder.newInstance().setMessageHandler(messageHandler).build();
       this.sender.initialize();
     } catch (Exception e) {
@@ -85,22 +81,21 @@ public abstract class ZeroTransport extends Transport {
       return;
     }
 
-    this.receiver =
-        new LoopingThread("locust-receiver") {
-          @Override
-          public Action process() throws Exception {
-            try {
-              byte[] bytes = ZeroTransport.this.commSocket.recv();
-              if (bytes != null) {
-                ZeroTransport.this.onMessage(new Message(bytes));
-                return Action.CONTINUE;
-              }
-            } catch (Exception ex) {
-              ex.printStackTrace();
-            }
-            return Action.BREAK; // terminate this loop
+    this.receiver = new LoopingThread("locust-receiver") {
+      @Override
+      public Action process() throws Exception {
+        try {
+          byte[] bytes = ZeroTransport.this.commSocket.recv();
+          if (bytes != null) {
+            ZeroTransport.this.onMessage(new Message(bytes));
+            return Action.CONTINUE;
           }
-        };
+        } catch (Exception ex) {
+//          ex.printStackTrace();
+        }
+        return Action.BREAK; // terminate this loop
+      }
+    };
   }
 
   public void onConnected() {
@@ -131,7 +126,7 @@ public abstract class ZeroTransport extends Transport {
         commSocket = null;
       }
       if (zeroContext != null) {
-        //                zeroContext.close();
+        zeroContext.close();
         zeroContext = null;
       }
     } finally {
@@ -153,28 +148,12 @@ public abstract class ZeroTransport extends Transport {
       logger.error("Can NOT connect to communication socket");
       return;
     }
-
-    //    zeroContext = ZMQ.context(2);
-    //    commSocket = zeroContext.socket(ZMQ.PUSH);
-    //    success &= commSocket.connect(String.format("tcp://%s:%d", host, port));
-    //    if (!success) {
-    //      logger.error("Can NOT connect to push");
-    //      return;
-    //    }
-
-    //    commSocket = zeroContext.socket(ZMQ.PULL);
-    //    success &= commSocket.connect(String.format("tcp://%s:%d", host, port + 1));
-    //    if (!success) {
-    //      logger.error("Can NOT connect to pull");
-    //      return;
-    //    }
-
     initializeReceiver();
     logger.info("Bootstrapped");
   }
 
   public void initialize() throws Exception {
-    logger.info("Initializing");
+    logger.info("Initializing...");
     initializeSender();
     initializeMonitor();
     logger.info("Initialized");
@@ -186,8 +165,6 @@ public abstract class ZeroTransport extends Transport {
       return;
     }
     if (state.get() == Transport.State.DISCONNECTED) {
-      //      this.commSocket.disconnect(addr);
-      //      this.commSocket.connect(addr);
       logger.error("Can NOT send messages");
       return;
     }
@@ -196,26 +173,23 @@ public abstract class ZeroTransport extends Transport {
     }
     this.sender.produce(null, message);
 
-    // blocking until we send this critical message
-    //        if (message.isQuit()) {
-    //            logger.info("Waiting a little bit...");
-    //            waiter.await(5, TimeUnit.SECONDS);
-    //        }
   }
 
+  @Override
   public void dispose() {
     // REMEMBER: to gracefully dispose, you must send `quit` messages first
     logger.info("Disposing...");
     try {
       this.state.set(Transport.State.CLOSING);
-      if (this.sender != null) {
-        logger.info("Disposing sender...");
-        this.sender.dispose();
-      }
       if (this.receiver != null) {
         logger.info("Disposing receiver...");
         this.receiver.dispose();
       }
+      if (this.sender != null) {
+        logger.info("Disposing sender...");
+        this.sender.dispose();
+      }
+
 
       this.monitor.dispose();
       release();
@@ -229,7 +203,6 @@ public abstract class ZeroTransport extends Transport {
 
   class TransportMonitor extends LoopingThread {
     ZMQ.Socket socket;
-    int reconnectCounter = 0;
     private State state;
     private ZMonitor monitor;
 
@@ -242,23 +215,9 @@ public abstract class ZeroTransport extends Transport {
       this(100);
     }
 
-    @Override
-    public void initialize() {
-      super.initialize();
-      //      ctx = new ZContext(1);
-      //      socket = ctx.createSocket(ZMQ.DEALER);
-      ////      socket.setReceiveTimeOut(interval);
-      //      socket.setIdentity(nodeId.getBytes());
-    }
+    ZMonitor.ZEvent getNextEvent() {
+      if (monitor == null) {
 
-    void tryReconnect() {
-      reconnectCounter = (++reconnectCounter) % 100;
-      if (reconnectCounter == 0) commSocket.connect(addr);
-    }
-
-    @Override
-    public Action process() throws Exception {
-      try {
         ZContext context = new ZContext(1);
         socket = context.createSocket(ZMQ.DEALER);
         socket.setIdentity((nodeId + "-monitor").getBytes());
@@ -267,10 +226,19 @@ public abstract class ZeroTransport extends Transport {
         monitor.start();
 
         boolean connected = socket.connect(addr);
-        ZMonitor.ZEvent event;
+        if (!connected) {
+          logger.warn("Could not connect...");
+        }
+      }
 
+      return monitor.nextEvent(true);
+    }
+
+    @Override
+    public Action process() throws Exception {
+      try {
         while (!Thread.currentThread().isInterrupted()) {
-          event = monitor.nextEvent(true);
+          ZMonitor.ZEvent event = getNextEvent();
           if (event == null) {
             //            tryReconnect();
             continue;
@@ -295,16 +263,5 @@ public abstract class ZeroTransport extends Transport {
       }
     }
 
-    @Override
-    public void dispose() {
-      super.dispose();
-      try {
-        //            monitor.destroy();
-        //            ctx.destroySocket(socket);
-        //            ctx.destroy();
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    }
   }
 }

@@ -15,12 +15,15 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** @author anhld on 7/28/18 */
+/**
+ * @author anhld on 7/28/18
+ */
 public class Scheduler implements Runnable, Disposable, Initializable {
   private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
   private final Builder builder;
   protected AtomicInteger pending = new AtomicInteger(0);
-  @Nullable private RateLimiter rateLimiter;
+  @Nullable
+  private RateLimiter rateLimiter;
   private Thread executor = null;
   private DisruptorBroker<Runnable> disruptor = null;
   private CircularList<Cron> queue = new ConcurrentCircularList<>();
@@ -55,7 +58,6 @@ public class Scheduler implements Runnable, Disposable, Initializable {
               .setMessageHandler(handler)
               .setParallelism(builder.parallelism)
               .build();
-      disruptor.initialize();
 
       executor = new Thread(this, "swarm-scheduler");
       executor.start();
@@ -67,7 +69,9 @@ public class Scheduler implements Runnable, Disposable, Initializable {
     }
   }
 
-  /** Invoke this method externally to signify a task is completed */
+  /**
+   * Invoke this method externally to signify a task is completed
+   */
   public void done() {
     if (this.builder.locust.isStopped()) {
       return;
@@ -75,7 +79,9 @@ public class Scheduler implements Runnable, Disposable, Initializable {
     this.pending.decrementAndGet();
   }
 
-  /** Wait until our number of pending tasks is not too large */
+  /**
+   * Wait until our number of pending tasks is not too large
+   */
   private void await() {
     if (rateLimiter != null) {
       rateLimiter.acquire();

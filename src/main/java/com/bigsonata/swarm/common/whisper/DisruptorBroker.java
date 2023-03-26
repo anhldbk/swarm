@@ -19,6 +19,7 @@ public class DisruptorBroker<T> extends Broker<T> {
 
   public DisruptorBroker(Builder<T> builder) {
     this.builder = builder;
+    this.initialize();
   }
 
   public static Builder newBuilder() {
@@ -68,21 +69,18 @@ public class DisruptorBroker<T> extends Broker<T> {
     }
   }
 
-  public void initialize() throws Exception {
+  public void initialize() {
     logger.info("Initializing...");
     logger.info("> parallelism={}", builder.parallelism);
     logger.info("> lowLatency={}", builder.lowLatency);
     logger.info("> bufferSize={}", builder.bufferSize);
 
-    WaitStrategy waitStrategy =
-        builder.isLowLatency() ? new BusySpinWaitStrategy() : new BlockingWaitStrategy();
+    WaitStrategy waitStrategy = builder.isLowLatency() ? new BusySpinWaitStrategy() : new BlockingWaitStrategy();
     ProducerType producerType =
         builder.getProducerMode() == ProducerMode.SINGLE ? ProducerType.SINGLE : ProducerType.MULTI;
     EventFactory eventFactory = () -> new Event();
 
-    disruptor =
-        new Disruptor(
-            eventFactory, builder.bufferSize, getThreadFactory(), producerType, waitStrategy);
+    disruptor = new Disruptor(eventFactory, builder.bufferSize, getThreadFactory(), producerType, waitStrategy);
     initializeRingBuffer();
 
     disruptor.handleEventsWithWorkerPool(getWorkersPool());
@@ -122,8 +120,7 @@ public class DisruptorBroker<T> extends Broker<T> {
   }
 
   public enum ProducerMode {
-    SINGLE,
-    MULTIPLE
+    SINGLE, MULTIPLE
   }
 
   private static class DisruptorEventHandler<T> implements WorkHandler<Event<T>> {
@@ -213,7 +210,7 @@ public class DisruptorBroker<T> extends Broker<T> {
      * effect
      *
      * @param messageHandler A message handler
-     * @param parallelism Parallelism
+     * @param parallelism    Parallelism
      * @return The current builder
      */
     public Builder<T> setMessageHandler(MessageHandler<T> messageHandler, int parallelism) {

@@ -14,10 +14,10 @@ import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Beat implements Disposable, Initializable {
+public class BeatService implements Disposable, Initializable {
 
   private static final Logger logger =
-      LoggerFactory.getLogger(Beat.class.getCanonicalName());
+      LoggerFactory.getLogger(BeatService.class.getCanonicalName());
   private final OperatingSystemMXBean osBean =
           ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
   private final Transport transport;
@@ -25,7 +25,7 @@ public class Beat implements Disposable, Initializable {
 
   private LoopingThread heartBeatTimer;
 
-  public Beat(Transport transport, Locust locust) {
+  public BeatService(Transport transport, Locust locust) {
     this.transport = transport;
     this.locust = locust;
   }
@@ -56,7 +56,7 @@ public class Beat implements Disposable, Initializable {
               Map<String, Object> data = new HashMap<>();
               data.put("current_cpu_usage",(int) (osBean.getProcessCpuLoad()*100));
               data.put("state", String.valueOf(locust.getState()).toLowerCase());
-              transport.send(new Message("heartbeat", data, -1, Beat.this.locust.nodeID));
+              transport.send(new Message("heartbeat", data, -1, BeatService.this.locust.nodeID));
             } catch (Exception e) {
               return Action.BREAK;
             }

@@ -78,7 +78,7 @@ public class Message {
         case ARRAY:
           int size = unpacker.unpackArrayHeader();
           value = new ArrayList(size);
-          for(int index = 0; index < size; ++index) {
+          for (int index = 0; index < size; ++index) {
             ((ArrayList) value).add(unpacker.unpackString());
           }
           break;
@@ -120,6 +120,11 @@ public class Message {
     return this.data;
   }
 
+  public String getNodeID() {
+    return nodeID;
+  }
+
+
   public byte[] getBytes() throws IOException {
     MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
     Visitor visitor = new Visitor(packer);
@@ -145,7 +150,7 @@ public class Message {
     }
 
     // pack the third field
-    packer.packString(this.nodeID);
+    packer.packString(this.getNodeID());
     byte[] bytes = packer.toByteArray();
     packer.close();
     return bytes;
